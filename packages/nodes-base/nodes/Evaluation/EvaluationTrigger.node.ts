@@ -7,8 +7,11 @@ import type {
 } from 'n8n-workflow';
 import { NodeConnectionTypes } from 'n8n-workflow';
 
-import { GOOGLE_DRIVE_FILE_URL_REGEX, GOOGLE_SHEETS_SHEET_URL_REGEX } from '../Google/constants';
+import { loadOptions } from './methods';
+import { document, sheet } from '../Google/Sheet/GoogleSheetsTrigger.node';
+import { readFilter } from '../Google/Sheet/v2/actions/sheet/read.operation';
 import { readSheet } from '../Google/Sheet/v2/actions/utils/readOperation';
+import { authentication } from '../Google/Sheet/v2/actions/versionDescription';
 import { GoogleSheet } from '../Google/Sheet/v2/helpers/GoogleSheet';
 import type { ResourceLocator } from '../Google/Sheet/v2/helpers/GoogleSheets.types';
 import { getSpreadsheetId } from '../Google/Sheet/v2/helpers/GoogleSheets.utils';
@@ -50,7 +53,6 @@ export class EvaluationTrigger implements INodeType {
 			},
 		],
 		properties: [
-			// trigger shared logic with GoogleSheets node, leaving this here for compatibility
 			{
 				displayName:
 					'Pulls a test dataset from a Google Sheet. The workflow will run once for each row, in sequence. More info.', // TODO Change
@@ -58,134 +60,9 @@ export class EvaluationTrigger implements INodeType {
 				type: 'notice',
 				default: '',
 			},
-			{
-				displayName: 'Authentication',
-				name: 'authentication',
-				type: 'options',
-				options: [
-					{
-						name: 'Service Account',
-						value: 'serviceAccount',
-					},
-					{
-						// eslint-disable-next-line n8n-nodes-base/node-param-display-name-miscased
-						name: 'OAuth2 (recommended)',
-						value: 'oAuth2',
-					},
-				],
-				default: 'oAuth2',
-			},
-			{
-				displayName: 'Document',
-				name: 'documentId',
-				type: 'resourceLocator',
-				default: { mode: 'list', value: '' },
-				required: true,
-				modes: [
-					{
-						displayName: 'From List',
-						name: 'list',
-						type: 'list',
-						typeOptions: {
-							searchListMethod: 'spreadSheetsSearch',
-							searchable: true,
-						},
-					},
-					{
-						displayName: 'By URL',
-						name: 'url',
-						type: 'string',
-						extractValue: {
-							type: 'regex',
-							regex: GOOGLE_DRIVE_FILE_URL_REGEX,
-						},
-						validation: [
-							{
-								type: 'regex',
-								properties: {
-									regex: GOOGLE_DRIVE_FILE_URL_REGEX,
-									errorMessage: 'Not a valid Google Drive File URL',
-								},
-							},
-						],
-					},
-					{
-						displayName: 'By ID',
-						name: 'id',
-						type: 'string',
-						validation: [
-							{
-								type: 'regex',
-								properties: {
-									regex: '[a-zA-Z0-9\\-_]{2,}',
-									errorMessage: 'Not a valid Google Drive File ID',
-								},
-							},
-						],
-						url: '=https://docs.google.com/spreadsheets/d/{{$value}}/edit',
-					},
-				],
-			},
-			{
-				displayName: 'Sheet',
-				name: 'sheetName',
-				type: 'resourceLocator',
-				default: { mode: 'list', value: '' },
-				// default: '', //empty string set to progresivly reveal fields
-				required: true,
-				typeOptions: {
-					loadOptionsDependsOn: ['documentId.value'],
-				},
-				modes: [
-					{
-						displayName: 'From List',
-						name: 'list',
-						type: 'list',
-						typeOptions: {
-							searchListMethod: 'sheetsSearch',
-							searchable: false,
-						},
-					},
-					{
-						displayName: 'By URL',
-						name: 'url',
-						type: 'string',
-						extractValue: {
-							type: 'regex',
-							regex: GOOGLE_SHEETS_SHEET_URL_REGEX,
-						},
-						validation: [
-							{
-								type: 'regex',
-								properties: {
-									regex: GOOGLE_SHEETS_SHEET_URL_REGEX,
-									errorMessage: 'Not a valid Sheet URL',
-								},
-							},
-						],
-					},
-					{
-						displayName: 'By ID',
-						name: 'id',
-						type: 'string',
-						validation: [
-							{
-								type: 'regex',
-								properties: {
-									regex: '((gid=)?[0-9]{1,})',
-									errorMessage: 'Not a valid Sheet ID',
-								},
-							},
-						],
-					},
-					{
-						displayName: 'By Name',
-						name: 'name',
-						type: 'string',
-						placeholder: 'Sheet1',
-					},
-				],
-			},
+			authentication,
+			document,
+			sheet,
 			{
 				displayName: 'Limit Rows',
 				name: 'limitRows',
@@ -203,8 +80,11 @@ export class EvaluationTrigger implements INodeType {
 				noDataExpression: false,
 				displayOptions: { show: { limitRows: [true] } },
 			},
+			readFilter,
 		],
 	};
+
+	methods = { loadOptions };
 
 	async execute(this: IExecuteFunctions) {
 		let operationResult: INodeExecutionData[] = [];
@@ -219,9 +99,6 @@ export class EvaluationTrigger implements INodeType {
 
 			const googleSheet = new GoogleSheet(spreadsheetId, this);
 
-			let sheetId = '';
-			let sheetName = '';
-
 			const sheetWithinDocument = this.getNodeParameter('sheetName', 0, undefined, {
 				extractValue: true,
 			}) as string;
@@ -234,14 +111,24 @@ export class EvaluationTrigger implements INodeType {
 				sheetMode,
 				sheetWithinDocument,
 			);
-			sheetId = result.sheetId.toString();
-			sheetName = result.title;
 
-			const results = await readSheet.call(this, googleSheet, sheetName, 0, operationResult, 5, []);
+			const sheetName = result.title;
 
-			if (results?.length) {
-				operationResult = operationResult.concat(results);
-			}
+			const maxRows = this.getNodeParameter('limitRows', 0)
+				? (this.getNodeParameter('maxRows', 0) as string)
+				: undefined;
+			const rangeString = maxRows ? `${sheetName}!1:${maxRows}` : `${sheetName}!A:Z`;
+
+			operationResult = await readSheet.call(
+				this,
+				googleSheet,
+				sheetName,
+				0,
+				operationResult,
+				5,
+				[],
+				rangeString,
+			);
 		} catch (error) {
 			if (this.continueOnFail()) {
 				operationResult.push({ json: this.getInputData(0)[0].json, error });

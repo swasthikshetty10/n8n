@@ -17,6 +17,8 @@ export async function readSheet(
 	returnData: INodeExecutionData[],
 	nodeVersion: number,
 	items: INodeExecutionData[],
+	rangeString?: string,
+	structureColumns: boolean = true,
 ): Promise<INodeExecutionData[]> {
 	const options = this.getNodeParameter('options', itemIndex, {});
 	const outputFormattingOption =
@@ -29,7 +31,7 @@ export async function readSheet(
 		dataLocationOnSheetOptions.rangeDefinition = 'detectAutomatically';
 	}
 
-	const range = getRangeString(sheetName, dataLocationOnSheetOptions);
+	const range = rangeString ?? getRangeString(sheetName, dataLocationOnSheetOptions);
 
 	const valueRenderMode = (outputFormattingOption.general ||
 		'UNFORMATTED_VALUE') as ValueRenderOption;
@@ -88,8 +90,10 @@ export async function readSheet(
 			returnAllMatches,
 			combineFilters,
 		});
-	} else {
+	} else if (structureColumns) {
 		responseData = sheet.structureArrayDataByColumn(inputData, keyRowIndex, dataStartRowIndex);
+	} else {
+		responseData = sheet.structureArrayData(inputData, keyRowIndex, dataStartRowIndex);
 	}
 
 	returnData.push(
