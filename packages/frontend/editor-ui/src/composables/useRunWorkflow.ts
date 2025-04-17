@@ -44,6 +44,7 @@ import { useTelemetry } from './useTelemetry';
 import { useSettingsStore } from '@/stores/settings.store';
 import { usePushConnectionStore } from '@/stores/pushConnection.store';
 import { useNodeDirtiness } from '@/composables/useNodeDirtiness';
+import { useParameterOverridesStore } from '@/stores/parameterOverrides.store';
 
 export function useRunWorkflow(useRunWorkflowOpts: { router: ReturnType<typeof useRouter> }) {
 	const nodeHelpers = useNodeHelpers();
@@ -60,6 +61,8 @@ export function useRunWorkflow(useRunWorkflowOpts: { router: ReturnType<typeof u
 	const workflowsStore = useWorkflowsStore();
 	const executionsStore = useExecutionsStore();
 	const { dirtinessByName } = useNodeDirtiness();
+
+	const parameterOverridesStore = useParameterOverridesStore();
 
 	// Starts to execute a workflow on server
 	async function runWorkflowApi(runData: IStartRunData): Promise<IExecutionPushResponse> {
@@ -282,6 +285,11 @@ export function useRunWorkflow(useRunWorkflowOpts: { router: ReturnType<typeof u
 
 			if ('destinationNode' in options) {
 				startRunData.destinationNode = options.destinationNode;
+				parameterOverridesStore.substituteParameters(
+					workflow.id,
+					options.destinationNode as string,
+					workflowData,
+				);
 			}
 
 			if (startRunData.runData) {
