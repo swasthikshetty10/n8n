@@ -109,12 +109,18 @@ export class Logger implements LoggerType {
 	}
 
 	private setConsoleTransport() {
-		const format =
-			this.level === 'debug' && inDevelopment
-				? this.debugDevConsoleFormat()
-				: this.level === 'debug' && inProduction
-					? this.debugProdConsoleFormat()
-					: winston.format.printf(({ message }: { message: string }) => message);
+		let format =
+			this.globalConfig.logging.format === 'json'
+				? winston.format.combine(
+						winston.format.timestamp(),
+						winston.format.metadata(),
+						winston.format.json(),
+					)
+				: this.level === 'debug' && inDevelopment
+					? this.debugDevConsoleFormat()
+					: this.level === 'debug' && inProduction
+						? this.debugProdConsoleFormat()
+						: winston.format.printf(({ message }: { message: string }) => message);
 
 		this.internalLogger.add(new winston.transports.Console({ format }));
 	}
