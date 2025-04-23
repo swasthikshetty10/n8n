@@ -129,7 +129,7 @@ export class Logger implements LoggerType {
 	}
 
 	private setConsoleTransport() {
-		let format =
+		const format =
 			this.globalConfig.logging.format === 'json'
 				? winston.format.combine(
 						winston.format.timestamp(),
