@@ -72,6 +72,7 @@ describe('LicenseMetricsRepository', () => {
 				activeWorkflows: 3,
 				productionExecutions: 2,
 				manualExecutions: 2,
+				productionRootExecutions: 2,
 			});
 		});
 
@@ -88,6 +89,7 @@ describe('LicenseMetricsRepository', () => {
 				activeWorkflows: 3,
 				productionExecutions: 0, // not NaN
 				manualExecutions: 0, // not NaN
+				productionRootExecutions: 0,
 			});
 		});
 	});

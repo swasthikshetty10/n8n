@@ -28,6 +28,7 @@ export class LicenseMetricsRepository extends Repository<LicenseMetrics> {
 			total_credentials_count: string | number;
 			production_executions_count: string | number;
 			manual_executions_count: string | number;
+			production_root_executions_count: string | number;
 		};
 
 		const userTable = this.toTableName('user');
@@ -35,6 +36,8 @@ export class LicenseMetricsRepository extends Repository<LicenseMetrics> {
 		const credentialTable = this.toTableName('credentials_entity');
 		const workflowStatsTable = this.toTableName('workflow_statistics');
 
+		// TODO: Need to get the correct production root executions count
+		// Currently just getting same result as production executions count
 		const [
 			{
 				enabled_user_count: enabledUsers,
@@ -44,6 +47,7 @@ export class LicenseMetricsRepository extends Repository<LicenseMetrics> {
 				total_credentials_count: totalCredentials,
 				production_executions_count: productionExecutions,
 				manual_executions_count: manualExecutions,
+				production_root_executions_count: productionRootExecutions,
 			},
 		] = (await this.query(`
 			SELECT
@@ -54,6 +58,7 @@ export class LicenseMetricsRepository extends Repository<LicenseMetrics> {
 				(SELECT COUNT(*) FROM ${credentialTable}) AS total_credentials_count,
 				(SELECT SUM(count) FROM ${workflowStatsTable} WHERE name IN ('production_success', 'production_error')) AS production_executions_count,
 				(SELECT SUM(count) FROM ${workflowStatsTable} WHERE name IN ('manual_success', 'manual_error')) AS manual_executions_count;
+				(SELECT SUM(count) FROM ${workflowStatsTable} WHERE name IN ('production_success', 'production_error')) AS production_root_executions_count,
 		`)) as Row[];
 
 		const toNumber = (value: string | number) =>
@@ -67,6 +72,7 @@ export class LicenseMetricsRepository extends Repository<LicenseMetrics> {
 			totalCredentials: toNumber(totalCredentials),
 			productionExecutions: toNumber(productionExecutions),
 			manualExecutions: toNumber(manualExecutions),
+			productionRootExecutions: toNumber(productionRootExecutions),
 		};
 	}
 }

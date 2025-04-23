@@ -47,6 +47,7 @@ describe('LicenseMetricsService', () => {
 				totalCredentials: 500,
 				productionExecutions: 600,
 				manualExecutions: 700,
+				productionRootExecutions: 550,
 			};
 
 			licenseMetricsRespository.getLicenseRenewalMetrics.mockResolvedValue(mockRenewalMetrics);
@@ -62,6 +63,7 @@ describe('LicenseMetricsService', () => {
 				{ name: 'productionExecutions', value: mockRenewalMetrics.productionExecutions },
 				{ name: 'manualExecutions', value: mockRenewalMetrics.manualExecutions },
 				{ name: 'activeWorkflowTriggers', value: mockActiveTriggerCount },
+				{ name: 'productionRootExecutions', value: mockRenewalMetrics.productionRootExecutions },
 			]);
 		});
 	});

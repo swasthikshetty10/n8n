@@ -19,6 +19,7 @@ export class LicenseMetricsService {
 			totalCredentials,
 			productionExecutions,
 			manualExecutions,
+			productionRootExecutions,
 		} = await this.licenseMetricsRepository.getLicenseRenewalMetrics();
 
 		const activeTriggerCount = await this.workflowRepository.getActiveTriggerCount();
@@ -32,6 +33,7 @@ export class LicenseMetricsService {
 			{ name: 'productionExecutions', value: productionExecutions },
 			{ name: 'manualExecutions', value: manualExecutions },
 			{ name: 'activeWorkflowTriggers', value: activeTriggerCount },
+			{ name: 'productionRootExecutions', value: productionRootExecutions },
 		];
 	}
 
